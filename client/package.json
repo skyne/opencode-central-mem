@@ -1,0 +1,81 @@
+{
+  "name": "opencode-central-mem",
+  "version": "0.1.0",
+  "description": "Fork of opencode-mem with central sync capability — persistent memory across machines",
+  "type": "module",
+  "main": "dist/plugin.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/plugin.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./server": {
+      "import": "./dist/plugin.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./tags": {
+      "import": "./dist/services/tags.js",
+      "types": "./dist/services/tags.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "bunx tsc && bun scripts/copy-web-assets.mjs",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "format": "prettier --write \"src/**/*.{ts,js,css,html}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,js,css,html}\"",
+    "prepare": "husky"
+  },
+  "keywords": [
+    "opencode",
+    "plugin",
+    "memory",
+    "vector-database",
+    "ai",
+    "coding-agent",
+    "local",
+    "standalone"
+  ],
+  "author": "opencode-mem",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/skyne/opencode-central-mem.git"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@opencode-ai/plugin": "^1.3.0",
+    "@opencode-ai/sdk": "^1.3.0",
+    "franc-min": "^6.2.0",
+    "iso-639-3": "^3.0.1",
+    "usearch": "^2.21.4",
+    "zod": "^4.3.6",
+    "@huggingface/transformers": "^4.2.0"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.8",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.7",
+    "prettier": "^3.4.2",
+    "typescript": "^5.7.3"
+  },
+  "opencode": {
+    "type": "plugin",
+    "hooks": [
+      "chat.message",
+      "event"
+    ]
+  },
+  "files": [
+    "dist",
+    "package.json"
+  ],
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx,css,html,json,md}": [
+      "prettier --write"
+    ]
+  }
+}

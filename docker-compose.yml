@@ -1,0 +1,14 @@
+services:
+  server:
+    build: ./server
+    ports:
+      - "3737:3737"
+    environment:
+      - PORT=3737
+      - AUTH_TOKEN=${AUTH_TOKEN:-dev-token}
+    volumes:
+      - mem-data:/app/data
+    restart: unless-stopped
+
+volumes:
+  mem-data:
