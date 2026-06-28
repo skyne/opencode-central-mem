@@ -89,6 +89,15 @@ class SyncManager {
     const metadata = memory.metadata ? JSON.parse(memory.metadata) : {};
     const centralId = metadata._centralId;
 
+    let embeddingArray: number[] | undefined;
+    if (memory.vector instanceof Buffer || memory.vector instanceof Uint8Array) {
+      const buf = memory.vector instanceof Buffer ? memory.vector : Buffer.from(memory.vector);
+      if (buf.length > 0) {
+        const emb = new Float32Array(buf.buffer, buf.byteOffset, buf.byteLength / 4);
+        embeddingArray = Array.from(emb);
+      }
+    }
+
     if (centralId) {
       const updated = await this.api.update(centralId, {
         content: memory.content,
@@ -103,6 +112,7 @@ class SyncManager {
         tags: memory.tags ? memory.tags.split(',').map((t: string) => t.trim()) : [],
         scope: 'project',
         project_name: tags.project.projectName,
+        embedding: embeddingArray,
       });
 
       if (newCentralId) {

@@ -1,19 +1,22 @@
-import Database from 'better-sqlite3';
+import { Database } from 'bun:sqlite';
 import path from 'path';
+import { mkdirSync } from 'fs';
 
-let db: Database.Database | null = null;
+let db: Database | null = null;
 
-export function getDb(dbPath?: string): Database.Database {
+export function getDb(dbPath?: string): Database {
   if (db) return db;
-  db = new Database(dbPath || path.join(process.cwd(), 'data', 'memories.db'));
-  db.pragma('journal_mode = WAL');
-  db.pragma('foreign_keys = ON');
+  const fp = dbPath || path.join(process.cwd(), 'data', 'memories.db');
+  mkdirSync(path.dirname(fp), { recursive: true });
+  db = new Database(fp);
+  db.run('PRAGMA journal_mode = WAL');
+  db.run('PRAGMA foreign_keys = ON');
   initSchema(db);
   return db;
 }
 
-function initSchema(db: Database.Database) {
-  db.exec(`
+function initSchema(db: Database) {
+  db.run(`
     CREATE TABLE IF NOT EXISTS memories (
       id TEXT PRIMARY KEY,
       content TEXT NOT NULL,
@@ -26,13 +29,13 @@ function initSchema(db: Database.Database) {
       embedding BLOB,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_memories_content_hash ON memories(content_hash);
-    CREATE INDEX IF NOT EXISTS idx_memories_tags ON memories(tags);
-    CREATE INDEX IF NOT EXISTS idx_memories_scope ON memories(scope);
-    CREATE INDEX IF NOT EXISTS idx_memories_updated_at ON memories(updated_at);
+    )
   `);
+
+  db.run('CREATE INDEX IF NOT EXISTS idx_memories_content_hash ON memories(content_hash)');
+  db.run('CREATE INDEX IF NOT EXISTS idx_memories_tags ON memories(tags)');
+  db.run('CREATE INDEX IF NOT EXISTS idx_memories_scope ON memories(scope)');
+  db.run('CREATE INDEX IF NOT EXISTS idx_memories_updated_at ON memories(updated_at)');
 }
 
 export function closeDb() {

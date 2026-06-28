@@ -5,6 +5,8 @@
   "scripts": {
     "dev:server": "bun run --cwd server dev",
     "build:server": "bun run --cwd server build",
-    "deploy": "docker compose up --build -d"
+    "test": "bun run --cwd server test",
+    "deploy": "docker compose up --build -d",
+    "cli": "bash scripts/central-mem.sh"
   }
 }

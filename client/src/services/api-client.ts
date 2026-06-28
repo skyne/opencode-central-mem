@@ -42,11 +42,12 @@ export class CentralApiClient {
     }
   }
 
-  async search(query: string, limit = 10): Promise<CentralMemory[]> {
+  async search(query: string, embedding?: number[], limit = 10): Promise<CentralMemory[]> {
     if (this.offline) return [];
     try {
+      const params = new URLSearchParams({ q: query, limit: String(limit) });
       const res = await fetch(
-        `${this.baseUrl}/memories/search?q=${encodeURIComponent(query)}&limit=${limit}`,
+        `${this.baseUrl}/memories/search?${params}`,
         { headers: this.headers, signal: AbortSignal.timeout(10000) }
       );
       if (!res.ok) return [];
@@ -63,6 +64,7 @@ export class CentralApiClient {
     source?: string;
     scope?: string;
     project_name?: string;
+    embedding?: number[];
   }): Promise<string | null> {
     if (this.offline) return null;
     try {
@@ -106,6 +108,30 @@ export class CentralApiClient {
       return res.ok;
     } catch {
       return false;
+    }
+  }
+
+  async batchImport(memories: Array<{
+    content: string;
+    tags?: string[];
+    source?: string;
+    scope?: string;
+    project_name?: string;
+    embedding?: number[];
+  }>): Promise<string[]> {
+    if (this.offline) return [];
+    try {
+      const res = await fetch(`${this.baseUrl}/memories/import`, {
+        method: 'POST',
+        headers: this.headers,
+        body: JSON.stringify({ memories }),
+        signal: AbortSignal.timeout(30000),
+      });
+      if (!res.ok) return [];
+      const data = (await res.json()) as { ids: string[] };
+      return data.ids || [];
+    } catch {
+      return [];
     }
   }
 }

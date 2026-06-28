@@ -3,96 +3,179 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Central Memory</title>
+<title>Central Memory Dashboard</title>
 <style>
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; background: #1a1a2e; color: #e0e0e0; }
-  h1 { color: #00d4ff; }
-  .search-box { display: flex; gap: 8px; margin: 20px 0; }
-  .search-box input { flex: 1; padding: 10px; border: 1px solid #333; border-radius: 6px; background: #16213e; color: #e0e0e0; font-size: 14px; }
-  .search-box button { padding: 10px 20px; background: #00d4ff; color: #1a1a2e; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; }
-  .memory { background: #16213e; border: 1px solid #333; border-radius: 8px; padding: 16px; margin: 12px 0; }
-  .memory .content { white-space: pre-wrap; margin: 8px 0; }
-  .memory .meta { font-size: 12px; color: #888; display: flex; gap: 12px; flex-wrap: wrap; }
-  .memory .tags { display: flex; gap: 4px; flex-wrap: wrap; }
-  .memory .tag { background: #0f3460; color: #00d4ff; padding: 2px 8px; border-radius: 4px; font-size: 11px; }
-  .memory .score { color: #e94560; font-weight: 600; }
-  .stats { color: #888; font-size: 13px; margin: 8px 0; }
-  #error { color: #e94560; }
-  .loading { text-align: center; padding: 40px; color: #888; }
-  .header-bar { display: flex; justify-content: space-between; align-items: center; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f0f1a; color: #c8d6e5; min-height: 100vh; }
+  .container { max-width: 900px; margin: 0 auto; padding: 20px; }
+  header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid #1e2a3a; }
+  h1 { font-size: 24px; color: #00d4ff; }
+  h1 span { color: #485; }
+  .stats-row { display: flex; gap: 16px; margin-bottom: 20px; }
+  .stat-card { background: #151528; border: 1px solid #1e2a3a; border-radius: 10px; padding: 16px 20px; flex: 1; }
+  .stat-card .num { font-size: 28px; font-weight: 700; color: #00d4ff; }
+  .stat-card .label { font-size: 12px; color: #657; text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; }
+  .search-box { display: flex; gap: 8px; margin-bottom: 20px; }
+  .search-box input { flex: 1; padding: 12px 16px; border: 1px solid #1e2a3a; border-radius: 8px; background: #151528; color: #c8d6e5; font-size: 14px; outline: none; transition: border 0.2s; }
+  .search-box input:focus { border-color: #00d4ff; }
+  .search-box button { padding: 12px 24px; background: #00d4ff; color: #0f0f1a; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 14px; transition: opacity 0.2s; }
+  .search-box button:hover { opacity: 0.85; }
+  .memory { background: #151528; border: 1px solid #1e2a3a; border-radius: 10px; padding: 16px 20px; margin-bottom: 12px; transition: border-color 0.2s; }
+  .memory:hover { border-color: #2a3a5a; }
+  .memory .content { font-size: 14px; line-height: 1.6; margin-bottom: 10px; }
+  .memory .meta { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; color: #657; align-items: center; }
+  .memory .tag { background: #0a1a2a; color: #00d4ff; padding: 2px 10px; border-radius: 12px; font-size: 11px; }
+  .memory .source { color: #485; }
+  .memory .time { color: #485; }
+  .empty { text-align: center; padding: 60px 20px; color: #485; }
+  .empty .icon { font-size: 48px; margin-bottom: 12px; }
+  .toast { position: fixed; bottom: 20px; right: 20px; background: #151528; border: 1px solid #1e2a3a; border-radius: 10px; padding: 12px 20px; font-size: 13px; display: none; }
+  .fade-in { animation: fadeIn 0.3s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  .loading { text-align: center; padding: 40px; }
+  .spinner { display: inline-block; width: 24px; height: 24px; border: 3px solid #1e2a3a; border-top-color: #00d4ff; border-radius: 50%; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .badge { display: inline-block; background: #0a2a1a; color: #4a8; padding: 2px 8px; border-radius: 4px; font-size: 11px; }
+  .filters { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+  .filter-btn { background: #151528; border: 1px solid #1e2a3a; color: #657; padding: 6px 14px; border-radius: 20px; cursor: pointer; font-size: 12px; transition: all 0.2s; }
+  .filter-btn.active { background: #00d4ff; color: #0f0f1a; border-color: #00d4ff; }
+  .filter-btn:hover { border-color: #00d4ff; color: #c8d6e5; }
+  #tokenInput { width: 100%; padding: 10px; background: #151528; border: 1px solid #1e2a3a; border-radius: 8px; color: #c8d6e5; font-size: 13px; margin-bottom: 16px; font-family: monospace; }
 </style>
 </head>
 <body>
-<div class="header-bar">
-  <h1>🧠 Central Memory</h1>
-  <span class="stats" id="stats"></span>
+<div class="container">
+  <header>
+    <h1>🧠 <span>Central Memory</span></h1>
+    <div id="statusDot" style="width:10px;height:10px;border-radius:50%;background:#4a8;"></div>
+  </header>
+
+  <input type="password" id="tokenInput" placeholder="Auth token (stored in session)">
+
+  <div class="stats-row" id="statsRow">
+    <div class="stat-card"><div class="num" id="statTotal">—</div><div class="label">Memories</div></div>
+    <div class="stat-card"><div class="num" id="statTags">—</div><div class="label">Unique Tags</div></div>
+    <div class="stat-card"><div class="num" id="statScopes">—</div><div class="label">Scopes</div></div>
+  </div>
+
+  <div class="search-box">
+    <input type="text" id="searchInput" placeholder="Search memories... (e.g. 'deployment server architecture')" autofocus>
+    <button onclick="search()">Search</button>
+  </div>
+
+  <div class="filters" id="filters"></div>
+  <div id="results"></div>
 </div>
-<div class="search-box">
-  <input type="text" id="searchInput" placeholder="Search memories..." autofocus>
-  <button onclick="searchMemories()">Search</button>
-</div>
-<div id="results"></div>
+
+<div class="toast" id="toast"></div>
 
 <script>
 const API = '';
-const TOKEN = localStorage.getItem('token') || prompt('Enter auth token:') || '';
-localStorage.setItem('token', TOKEN);
+let TOKEN = sessionStorage.getItem('central_mem_token') || '';
+let allResults = [];
+let currentScope = '';
 
-async function searchMemories() {
-  const q = document.getElementById('searchInput').value.trim();
-  const resultsDiv = document.getElementById('results');
-  resultsDiv.innerHTML = '<div class="loading">Searching...</div>';
+document.getElementById('tokenInput').value = TOKEN;
+document.getElementById('tokenInput').addEventListener('input', () => {
+  TOKEN = document.getElementById('tokenInput').value;
+  sessionStorage.setItem('central_mem_token', TOKEN);
+  loadDashboard();
+});
 
-  try {
-    const url = q ? `${API}/memories/search?q=${encodeURIComponent(q)}&limit=20` : `${API}/memories/search?limit=20`;
-    const res = await fetch(url, { headers: { 'Authorization': `Bearer ${TOKEN}` } });
-    if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
-    const data = await res.json();
-    renderResults(data.results || []);
-  } catch (e) {
-    resultsDiv.innerHTML = `<div id="error">Error: ${e.message}</div>`;
+async function api(path, opts = {}) {
+  const res = await fetch(API + path, {
+    ...opts,
+    headers: { ...opts.headers, 'Authorization': `Bearer ${TOKEN}` },
+  });
+  if (!res.ok) {
+    if (res.status === 401) { showError('Unauthorized — check your token'); return null; }
+    const text = await res.text();
+    showError(`HTTP ${res.status}: ${text.slice(0, 100)}`);
+    return null;
   }
+  return res.json();
 }
 
-async function fetchStats() {
-  try {
-    const res = await fetch(`${API}/memories/search?limit=0`, { headers: { 'Authorization': `Bearer ${TOKEN}` } });
-    if (res.ok) {
-      const data = await res.json();
-      document.getElementById('stats').textContent = `${data.results.length}+ memories`;
-    }
-  } catch {}
+function showError(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = '⚠️ ' + msg;
+  el.style.display = 'block';
+  el.style.borderColor = '#e94560';
+  setTimeout(() => { el.style.display = 'none'; }, 4000);
+}
+
+async function loadDashboard() {
+  if (!TOKEN) return;
+  const stats = await api('/memories/stats');
+  if (stats) {
+    document.getElementById('statTotal').textContent = stats.total_memories;
+    document.getElementById('statTags').textContent = stats.unique_tags;
+    document.getElementById('statScopes').textContent = stats.scopes?.length || 0;
+  }
+  search();
+}
+
+async function search() {
+  if (!TOKEN) { document.getElementById('results').innerHTML = '<div class="empty"><div class="icon">🔐</div>Enter your auth token above</div>'; return; }
+  const q = document.getElementById('searchInput').value.trim();
+  const resultsDiv = document.getElementById('results');
+  resultsDiv.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+
+  let url = '/memories/search?limit=20';
+  if (q) url += '&q=' + encodeURIComponent(q);
+
+  const data = await api(url);
+  if (!data) { resultsDiv.innerHTML = ''; return; }
+
+  allResults = data.results || [];
+  renderResults(allResults);
+
+  const allTags = new Set();
+  allResults.forEach(r => (r.tags || []).forEach(t => allTags.add(t)));
+  renderFilters([...allTags]);
+}
+
+function renderFilters(tags) {
+  const div = document.getElementById('filters');
+  div.innerHTML = '<button class="filter-btn' + (!currentScope ? ' active' : '') + '" onclick="setScope(\'\')">All</button>' +
+    tags.map(t => `<button class="filter-btn${currentScope === t ? ' active' : ''}" onclick="setScope('${t}')">${t}</button>`).join('');
+}
+
+function setScope(tag) {
+  currentScope = tag;
+  const filtered = tag ? allResults.filter(r => (r.tags || []).includes(tag)) : allResults;
+  renderResults(filtered);
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.toggle('active', b.textContent === (tag || 'All')));
 }
 
 function renderResults(results) {
-  const resultsDiv = document.getElementById('results');
-  if (results.length === 0) {
-    resultsDiv.innerHTML = '<div style="text-align:center;padding:40px;color:#888;">No memories found</div>';
+  const div = document.getElementById('results');
+  if (!results || results.length === 0) {
+    div.innerHTML = '<div class="empty"><div class="icon">📭</div><div>No memories found</div></div>';
     return;
   }
-  resultsDiv.innerHTML = results.map(m => `
-    <div class="memory">
-      <div class="content">${escapeHtml(m.content)}</div>
+  div.innerHTML = results.map(m => `
+    <div class="memory fade-in">
+      <div class="content">${escHtml(m.content)}</div>
       <div class="meta">
-        <span class="tags">${(m.tags || []).map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('')}</span>
-        <span>scope: ${m.scope}</span>
-        <span>source: ${m.source}</span>
-        ${m.score ? `<span class="score">score: ${m.score.toFixed(3)}</span>` : ''}
-        <span>${new Date(m.updated_at).toLocaleString()}</span>
+        <span class="tags">${(m.tags || []).map(t => `<span class="tag">${escHtml(t)}</span>`).join('')}</span>
+        ${m.source ? `<span class="source">📦 ${escHtml(m.source)}</span>` : ''}
+        ${m.scope ? `<span class="badge">${escHtml(m.scope)}</span>` : ''}
+        <span class="time">🕐 ${m.updated_at || ''}</span>
       </div>
     </div>
   `).join('');
 }
 
-function escapeHtml(s) {
-  const div = document.createElement('div');
-  div.textContent = s;
-  return div.innerHTML;
+function escHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
 }
 
-document.getElementById('searchInput').addEventListener('keydown', e => { if (e.key === 'Enter') searchMemories(); });
-searchMemories();
-fetchStats();
+document.getElementById('searchInput').addEventListener('keydown', e => { if (e.key === 'Enter') search(); });
+
+if (TOKEN) loadDashboard();
 </script>
 </body>
 </html>
