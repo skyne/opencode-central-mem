@@ -23,7 +23,8 @@ jobs:
       - name: Package client plugin
         run: |
           mkdir -p dist/plugin
-          cp -r client/dist client/package.json client/README.md dist/plugin/
+          cp -r client/dist client/package.json dist/plugin/
+          cp README.md dist/plugin/
           cd dist/plugin
           tar czf ../opencode-central-mem-plugin.tar.gz .
 
