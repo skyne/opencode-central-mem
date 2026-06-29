@@ -25,10 +25,10 @@ Then configure `~/.config/opencode/opencode-mem.jsonc`:
 
 ```sh
 # Bare metal (macOS / Linux)
-curl -sL https://github.com/skyne/opencode-central-mem/releases/latest/download/opencode-central-mem-server.tar.gz | tar xz && cd server && npm install && AUTH_TOKEN=your-token npx tsx src/index.ts
+curl -sL https://github.com/skyne/opencode-central-mem/releases/latest/download/opencode-central-mem-server.tar.gz | tar xz && npm install && AUTH_TOKEN=your-token npx tsx src/index.ts
 
 # Docker
-docker run -d -p 3737:3737 -e AUTH_TOKEN=your-token -v mem-data:/app/data ghcr.io/skyne/opencode-central-mem
+docker build -t central-mem-server server/ && docker run -d -p 3737:3737 -e AUTH_TOKEN=your-token -v mem-data:/app/data central-mem-server
 ```
 
 ## Quick Start
