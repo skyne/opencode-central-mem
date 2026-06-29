@@ -34,7 +34,7 @@ jobs:
           tar czf ../dist/opencode-central-mem-server.tar.gz \
             --exclude=node_modules \
             --exclude=tests \
-            src public package.json tsconfig.json Dockerfile .dockerignore
+            src public package.json tsconfig.json Dockerfile
 
       - name: Upload release artifacts
         run: |
