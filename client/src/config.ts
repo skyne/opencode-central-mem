@@ -30,6 +30,18 @@ interface OpenCodeMemConfig {
     syncIntervalMs?: number;
     groomIntervalMs?: number;
   };
+  hub?: {
+    url?: string;
+    token?: string;
+    enabled?: boolean;
+    agentName?: string;
+    maxConcurrentTasks?: number;
+    capabilities?: {
+      add?: string[];
+      remove?: string[];
+      confidence?: Record<string, number>;
+    };
+  };
   memory?: {
     defaultScope?: "project" | "all-projects";
   };
@@ -104,6 +116,7 @@ const DEFAULTS: Required<
     | "userEmailOverride"
     | "userNameOverride"
     | "sync"
+    | "hub"
   >
 > & {
   embeddingApiUrl?: string;
@@ -126,6 +139,18 @@ const DEFAULTS: Required<
     offline?: boolean;
     syncIntervalMs?: number;
     groomIntervalMs?: number;
+  };
+  hub?: {
+    url?: string;
+    token?: string;
+    enabled?: boolean;
+    agentName?: string;
+    maxConcurrentTasks?: number;
+    capabilities?: {
+      add?: string[];
+      remove?: string[];
+      confidence?: Record<string, number>;
+    };
   };
   memory?: {
     defaultScope?: "project" | "all-projects";
@@ -570,6 +595,7 @@ function buildConfig(fileConfig: OpenCodeMemConfig) {
     showUserProfileToasts: fileConfig.showUserProfileToasts ?? DEFAULTS.showUserProfileToasts,
     showErrorToasts: fileConfig.showErrorToasts ?? DEFAULTS.showErrorToasts,
     sync: fileConfig.sync,
+    hub: fileConfig.hub,
     memory: {
       defaultScope: fileConfig.memory?.defaultScope ?? DEFAULTS.memory.defaultScope,
     },

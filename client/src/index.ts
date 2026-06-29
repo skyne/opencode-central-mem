@@ -11,6 +11,11 @@ import { performUserProfileLearning } from "./services/user-memory-learning.js";
 import { userPromptManager } from "./services/user-prompt/user-prompt-manager.js";
 import { startWebServer, WebServer } from "./services/web-server.js";
 import { syncManager } from "./services/sync-manager.js";
+import { agentService } from "./services/hub/agent-service.js";
+import { messenger } from "./services/hub/messenger.js";
+import { delegation } from "./services/hub/delegation.js";
+import { taskHandler } from "./services/hub/task-handler.js";
+import { detectCapabilities, mergeCapabilities } from "./services/hub/capability-declarer.js";
 
 import { isConfigured, CONFIG, initConfig } from "./config.js";
 import { log } from "./services/logger.js";
@@ -30,6 +35,36 @@ export const OpenCodeMemPlugin: Plugin = async (ctx: PluginInput, options?: Plug
   const syncToken = pluginOpts?.sync?.token || CONFIG.sync?.token;
   if (syncUrl && syncToken) {
     syncManager.init(directory, syncUrl, syncToken);
+  }
+
+  const hubUrl = pluginOpts?.hub?.url || CONFIG.hub?.url;
+  const hubToken = pluginOpts?.hub?.token || CONFIG.hub?.token;
+  const hubEnabled = pluginOpts?.hub?.enabled ?? CONFIG.hub?.enabled ?? true;
+  if (hubUrl && hubToken && hubEnabled) {
+    const agentName = CONFIG.hub?.agentName || `agent-${process.env.USER || 'opencode'}-${Math.random().toString(36).slice(2, 6)}`;
+    const detectedCaps = detectCapabilities(directory);
+    const mergedCaps = mergeCapabilities(detectedCaps, CONFIG.hub?.capabilities);
+
+    log("Hub connecting", { url: hubUrl, agentName, capabilities: mergedCaps.map(c => c.name) });
+
+    agentService.connect(hubUrl, agentName, mergedCaps, {
+      token: hubToken,
+      version: "0.1.0",
+      project: tags.project.projectName || directory.split('/').pop(),
+    }).then((agentId) => {
+      log("Hub connected", { agentId, agentName });
+      messenger.init();
+      delegation.init();
+      taskHandler.init();
+
+      taskHandler.setExecutor(async (task) => {
+        const summary = `Task '${task.title}' received from ${task.createdByName}. Task queued for processing.`;
+        log("Hub task received", { task_id: task.taskId, title: task.title, from: task.createdByName });
+        return { summary, details: "Task acknowledged. The AI agent will process it when available." };
+      });
+    }).catch((err) => {
+      log("Hub connection failed", { error: String(err) });
+    });
   }
 
   if (!isConfigured()) {
@@ -138,6 +173,7 @@ export const OpenCodeMemPlugin: Plugin = async (ctx: PluginInput, options?: Plug
 
   const cleanupPlugin = async () => {
     syncManager.stop();
+    agentService.disconnect();
     if (webServer) await webServer.stop();
     if (memoryClient) memoryClient.close();
   };
@@ -485,6 +521,141 @@ export const OpenCodeMemPlugin: Plugin = async (ctx: PluginInput, options?: Plug
               default:
                 return JSON.stringify({ success: false, error: `Unknown mode: ${mode}` });
             }
+          } catch (error) {
+            return JSON.stringify({ success: false, error: String(error) });
+          }
+        },
+      }),
+
+      list_agents: tool({
+        description: "List available agents connected to the hub and their capabilities",
+        args: {
+          capability: tool.schema.string().optional().describe("Filter by capability name"),
+        },
+        async execute(args: { capability?: string }) {
+          if (!agentService.isConnected) {
+            return JSON.stringify({ success: false, error: "Hub not connected" });
+          }
+          try {
+            const agents = await messenger.listAgents({
+              capabilities: args.capability ? [args.capability] : undefined,
+            });
+            return JSON.stringify({
+              success: true,
+              agents: agents.map((a: any) => ({
+                id: a.id,
+                name: a.name,
+                status: a.status,
+                capabilities: a.capabilities?.map((c: any) => c.name) || [],
+                active_tasks: a.active_tasks || 0,
+              })),
+            });
+          } catch (error) {
+            return JSON.stringify({ success: false, error: String(error) });
+          }
+        },
+      }),
+
+      delegate_task: tool({
+        description: "Delegate a task to another agent or let the hub route it to the best match",
+        args: {
+          title: tool.schema.string().describe("Task title"),
+          description: tool.schema.string().optional().describe("Detailed task description"),
+          target_agent: tool.schema.string().optional().describe("Specific agent name to assign to"),
+          required_capabilities: tool.schema.string().optional().describe("Comma-separated required capabilities (e.g. 'rust,testing')"),
+        },
+        async execute(args: { title: string; description?: string; target_agent?: string; required_capabilities?: string }) {
+          if (!agentService.isConnected) {
+            return JSON.stringify({ success: false, error: "Hub not connected" });
+          }
+          try {
+            const result = await delegation.delegate({
+              title: args.title,
+              description: args.description,
+              targetAgent: args.target_agent,
+              requiredCapabilities: args.required_capabilities?.split(",").map(c => c.trim()).filter(Boolean),
+            });
+            return JSON.stringify({
+              success: true,
+              task_id: result.taskId,
+              status: result.status,
+              assigned_to: result.assignedTo || null,
+              message: result.assignedTo
+                ? `Task assigned to agent`
+                : "No agent currently available. Task queued.",
+            });
+          } catch (error) {
+            return JSON.stringify({ success: false, error: String(error) });
+          }
+        },
+      }),
+
+      ask_agent: tool({
+        description: "Ask a direct question to another agent and wait for a reply",
+        args: {
+          agent: tool.schema.string().describe("Target agent name"),
+          question: tool.schema.string().describe("Your question"),
+        },
+        async execute(args: { agent: string; question: string }) {
+          if (!agentService.isConnected) {
+            return JSON.stringify({ success: false, error: "Hub not connected" });
+          }
+          try {
+            const reply = await messenger.sendAndWaitReply(args.agent, args.question);
+            return JSON.stringify({ success: true, reply, from: args.agent });
+          } catch (error) {
+            return JSON.stringify({ success: false, error: String(error) });
+          }
+        },
+      }),
+
+      get_task_status: tool({
+        description: "Check the status of a previously delegated task",
+        args: {
+          task_id: tool.schema.string().describe("Task ID to check"),
+        },
+        async execute(args: { task_id: string }) {
+          if (!agentService.isConnected) {
+            return JSON.stringify({ success: false, error: "Hub not connected" });
+          }
+          try {
+            const tasks = await delegation.listTasks({ createdBy: agentService.id });
+            const task = tasks.find((t: any) => t.id === args.task_id);
+            if (!task) {
+              return JSON.stringify({ success: false, error: "Task not found" });
+            }
+            return JSON.stringify({
+              success: true,
+              task: {
+                id: task.id,
+                title: task.title,
+                status: task.status,
+                assigned_to: task.assigned_to,
+                progress: task.progress,
+                result: task.result ? JSON.parse(task.result) : null,
+                error: task.error,
+                created_at: task.created_at,
+                completed_at: task.completed_at,
+              },
+            });
+          } catch (error) {
+            return JSON.stringify({ success: false, error: String(error) });
+          }
+        },
+      }),
+
+      cancel_task: tool({
+        description: "Cancel a task you previously delegated",
+        args: {
+          task_id: tool.schema.string().describe("Task ID to cancel"),
+        },
+        async execute(args: { task_id: string }) {
+          if (!agentService.isConnected) {
+            return JSON.stringify({ success: false, error: "Hub not connected" });
+          }
+          try {
+            await delegation.cancelTask(args.task_id);
+            return JSON.stringify({ success: true, message: "Task cancelled" });
           } catch (error) {
             return JSON.stringify({ success: false, error: String(error) });
           }
