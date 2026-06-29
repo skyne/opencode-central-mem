@@ -1,49 +1,24 @@
-#!/usr/bin/env bash
+#!/bin/bash
 set -euo pipefail
 
-SERVER_DIR="$(dirname "$0")/../server"
-AUTH_TOKEN="${AUTH_TOKEN:-$(openssl rand -hex 32)}"
+SERVER="ailab"
+REMOTE_DIR="~/opencode-central-mem"
+AUTH_TOKEN="${AUTH_TOKEN:-ailab-prod-20260628}"
 
-echo "=== Deploying Central Memory Server ==="
-echo "Auth token: $AUTH_TOKEN"
-echo ""
+echo "=== Deploying central-mem-server to $SERVER ==="
 
-# Build and deploy
-docker compose -f "$(dirname "$0")/../docker-compose.yml" build server
+tar czf - server/ | ssh "$SERVER" "tar xzf - -C $REMOTE_DIR"
+echo "  Files copied"
 
-# Save the auth token to a .env file
-cat > "$(dirname "$0")/../.env" <<EOF
-AUTH_TOKEN=$AUTH_TOKEN
-EOF
+ssh "$SERVER" "cd $REMOTE_DIR/server && npm install 2>&1 | tail -1"
+echo "  Dependencies installed"
 
+ssh "$SERVER" "sudo systemctl restart central-mem"
+echo "  Service restarted"
+
+sleep 2
+ssh "$SERVER" "curl -s http://localhost:3737/health"
 echo ""
-echo "=== Deploying to ailab ==="
-echo "Run the following on ailab:"
-echo ""
-echo "  mkdir -p ~/opencode-central-mem"
-echo "  cd ~/opencode-central-mem"
-echo ""
-echo "Then copy these files to ailab:"
-echo "  server/         (entire directory)"
-echo "  docker-compose.yml"
-echo "  .env"
-echo ""
-echo "Via SCP:"
-echo "  scp -r server docker-compose.yml .env ailab:~/opencode-central-mem/"
-echo ""
-echo "Then SSH into ailab and run:"
-echo "  cd ~/opencode-central-mem && docker compose up -d"
-echo ""
-echo "The server will be available at http://ailab:3737"
-echo "Auth token: $AUTH_TOKEN"
-echo ""
-echo "Add this to your opencode.jsonc:"
-echo ""
-echo '  "plugin": [["opencode-central-mem", {'
-echo "    \"sync\": {"
-echo "      \"url\": \"http://ailab:3737\","
-echo "      \"token\": \"$AUTH_TOKEN\","
-echo "      \"offline\": false"
-echo "    }"
-echo "  }]]"
-echo ""
+echo "=== Deploy complete ==="
+TS_IP=$(ssh "$SERVER" "tailscale ip -4" 2>/dev/null || echo "unknown")
+echo "Dashboard: http://$TS_IP:3737 (Tailscale)"

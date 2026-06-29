@@ -41,6 +41,28 @@
   .filter-btn.active { background: #00d4ff; color: #0f0f1a; border-color: #00d4ff; }
   .filter-btn:hover { border-color: #00d4ff; color: #c8d6e5; }
   #tokenInput { width: 100%; padding: 10px; background: #151528; border: 1px solid #1e2a3a; border-radius: 8px; color: #c8d6e5; font-size: 13px; margin-bottom: 16px; font-family: monospace; }
+  .tabs { display: flex; gap: 4px; margin-bottom: 20px; }
+  .tab { padding: 8px 20px; border: 1px solid #1e2a3a; border-radius: 8px 8px 0 0; cursor: pointer; font-size: 13px; background: #0f0f1a; color: #657; transition: all 0.2s; }
+  .tab.active { background: #151528; color: #00d4ff; border-bottom-color: #151528; }
+  .tab:hover { color: #c8d6e5; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+  .groom-entry { background: #151528; border: 1px solid #1e2a3a; border-radius: 10px; padding: 14px 18px; margin-bottom: 10px; font-size: 13px; }
+  .groom-entry .action { display: inline-block; padding: 2px 10px; border-radius: 4px; font-weight: 600; font-size: 11px; text-transform: uppercase; }
+  .groom-entry .action.merge { background: #1a2a3a; color: #4a8; }
+  .groom-entry .action.reconcile { background: #2a1a3a; color: #a8f; }
+  .groom-entry .action.flag { background: #2a2a1a; color: #fa8; }
+  .groom-entry .action.delete { background: #3a1a1a; color: #e45; }
+  .groom-entry .status { display: inline-block; padding: 2px 10px; border-radius: 4px; font-size: 11px; margin-left: 8px; }
+  .groom-entry .status.applied { background: #0a2a1a; color: #4a8; }
+  .groom-entry .status.pending { background: #2a2a1a; color: #fa8; }
+  .groom-entry .status.rejected { background: #3a1a1a; color: #e45; }
+  .groom-entry .reason { color: #657; margin-top: 6px; font-style: italic; }
+  .groom-entry .meta { color: #485; font-size: 11px; margin-top: 6px; display: flex; gap: 12px; }
+  .groom-btn { padding: 6px 14px; border-radius: 6px; border: none; cursor: pointer; font-size: 12px; font-weight: 600; transition: opacity 0.2s; }
+  .groom-btn:hover { opacity: 0.8; }
+  .groom-btn.apply { background: #4a8; color: #0f0f1a; }
+  .groom-btn.reject { background: #e45; color: #fff; }
 </style>
 </head>
 <body>
@@ -63,8 +85,28 @@
     <button onclick="search()">Search</button>
   </div>
 
-  <div class="filters" id="filters"></div>
-  <div id="results"></div>
+  <div class="tabs">
+    <div class="tab active" id="tabMemories" onclick="switchTab('memories')">Memories</div>
+    <div class="tab" id="tabGroom" onclick="switchTab('groom')">Groom Log</div>
+  </div>
+
+  <div class="panel active" id="panelMemories">
+    <div class="filters" id="filters"></div>
+    <div id="results"></div>
+  </div>
+
+  <div class="panel" id="panelGroom">
+    <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center;">
+      <select id="groomStatusFilter" onchange="loadGroomLog()" style="background:#151528;border:1px solid #1e2a3a;border-radius:8px;color:#c8d6e5;padding:8px;">
+        <option value="">All statuses</option>
+        <option value="pending">Pending</option>
+        <option value="applied">Applied</option>
+        <option value="rejected">Rejected</option>
+      </select>
+      <button onclick="loadGroomLog()" style="background:#00d4ff;color:#0f0f1a;border:none;border-radius:8px;padding:8px 16px;cursor:pointer;font-weight:600;">Refresh</button>
+    </div>
+    <div id="groomResults"></div>
+  </div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -174,6 +216,54 @@ function escHtml(s) {
 }
 
 document.getElementById('searchInput').addEventListener('keydown', e => { if (e.key === 'Enter') search(); });
+
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab' + name.charAt(0).toUpperCase() + name.slice(1)).classList.add('active');
+  document.getElementById('panel' + name.charAt(0).toUpperCase() + name.slice(1)).classList.add('active');
+  if (name === 'groom') loadGroomLog();
+}
+
+async function loadGroomLog() {
+  const div = document.getElementById('groomResults');
+  div.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  const status = document.getElementById('groomStatusFilter').value;
+  const params = status ? '?status=' + status : '';
+  const data = await api('/memories/groom/log' + params);
+  if (!data) { div.innerHTML = ''; return; }
+  if (!data.actions || data.actions.length === 0) {
+    div.innerHTML = '<div class="empty"><div class="icon">📋</div><div>No groom actions yet</div></div>';
+    return;
+  }
+  div.innerHTML = data.actions.map(a => {
+    const srcIds = a.source_ids ? (Array.isArray(a.source_ids) ? a.source_ids.join(', ') : a.source_ids) : '';
+    return `<div class="groom-entry fade-in">
+      <div><span class="action ${a.action}">${a.action}</span> <span class="status ${a.status}">${a.status}</span></div>
+      ${a.target_id ? `<div style="margin-top:4px;color:#657;font-size:12px;">Target: <code style="color:#c8d6e5;">${escHtml(a.target_id)}</code></div>` : ''}
+      ${srcIds ? `<div style="margin-top:2px;color:#657;font-size:12px;">Sources: <code style="color:#c8d6e5;">${escHtml(srcIds)}</code></div>` : ''}
+      <div class="reason">${escHtml(a.reason || '')}</div>
+      ${a.metadata ? `<div style="color:#485;font-size:11px;margin-top:4px;">${escHtml(a.metadata.slice(0, 200))}</div>` : ''}
+      <div class="meta">
+        <span>${a.created_at || ''}</span>
+        ${a.status === 'pending' ? `
+          <button class="groom-btn apply" onclick="applyGroom('${a.id}')">Apply</button>
+          <button class="groom-btn reject" onclick="rejectGroom('${a.id}')">Reject</button>
+        ` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function applyGroom(id) {
+  const data = await api('/memories/groom/apply/' + id, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+  if (data) loadGroomLog();
+}
+
+async function rejectGroom(id) {
+  const data = await api('/memories/groom/reject/' + id, { method: 'POST' });
+  if (data) loadGroomLog();
+}
 
 if (TOKEN) loadDashboard();
 </script>

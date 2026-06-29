@@ -4,15 +4,19 @@
   "scripts": {
     "dev": "bun run --watch src/index.ts",
     "build": "bun build src/index.ts --outdir dist",
-    "start": "bun run src/index.ts",
+    "start": "node src/index.js",
     "test": "bun test tests/"
   },
   "dependencies": {
+    "@hono/node-server": "^1.14.0",
+    "better-sqlite3": "^11.8.1",
     "hono": "^4.7.0",
-    "uuid": "^11.1.0"
+    "uuid": "^11.1.0",
+    "ws": "^8.21.0"
   },
   "devDependencies": {
     "@types/uuid": "^10.0.0",
+    "@types/better-sqlite3": "^7.6.13",
     "bun-types": "^1.2.0"
   }
 }

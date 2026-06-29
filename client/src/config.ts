@@ -28,6 +28,7 @@ interface OpenCodeMemConfig {
     token?: string;
     offline?: boolean;
     syncIntervalMs?: number;
+    groomIntervalMs?: number;
   };
   memory?: {
     defaultScope?: "project" | "all-projects";
@@ -124,6 +125,7 @@ const DEFAULTS: Required<
     token?: string;
     offline?: boolean;
     syncIntervalMs?: number;
+    groomIntervalMs?: number;
   };
   memory?: {
     defaultScope?: "project" | "all-projects";

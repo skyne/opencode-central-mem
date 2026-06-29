@@ -3,6 +3,7 @@ import { memoryClient } from './client.js';
 import { CONFIG } from '../config.js';
 import { log } from './logger.js';
 import { getTags } from './tags.js';
+import { GroomingService } from './grooming-service.js';
 
 interface SyncQueueItem {
   memoryId: string;
@@ -16,6 +17,7 @@ class SyncManager {
   private processing = false;
   private syncTimer: Timer | null = null;
   private directory: string = '';
+  private grooming: GroomingService | null = null;
 
   init(directory: string, baseUrl?: string, token?: string) {
     this.directory = directory;
@@ -23,6 +25,9 @@ class SyncManager {
       this.api = new CentralApiClient(baseUrl, token, CONFIG.sync?.offline ?? false);
       log('Sync manager initialized', { url: baseUrl });
       this.startPeriodicSync();
+      this.grooming = new GroomingService(this.api, directory);
+      const groomInterval = CONFIG.sync?.groomIntervalMs || 3600000;
+      this.grooming.start(groomInterval);
     }
   }
 
@@ -35,6 +40,10 @@ class SyncManager {
     if (this.syncTimer) {
       clearInterval(this.syncTimer);
       this.syncTimer = null;
+    }
+    if (this.grooming) {
+      this.grooming.stop();
+      this.grooming = null;
     }
   }
 
@@ -145,7 +154,7 @@ class SyncManager {
     }
 
     try {
-      const centralResults = await this.api.search(query, CONFIG.maxMemories || 10);
+      const centralResults = await this.api.search(query, undefined, CONFIG.maxMemories || 10);
       const centralHashes = new Set(centralResults.map(r => r.content_hash));
 
       interface MergedResult { id: string; memory: string; similarity: number; tags?: string[]; metadata?: any; source: string }
@@ -229,7 +238,7 @@ class SyncManager {
     if (!local) return;
 
     if (!this.api) return;
-    const central = await this.api.search(local.content, 1);
+    const central = await this.api.search(local.content, undefined, 1);
     if (!central || central.length === 0) return;
 
     const centralEntry = central[0]!;

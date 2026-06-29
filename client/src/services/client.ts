@@ -94,7 +94,7 @@ export class LocalMemoryClient {
   }
 
   async isReady(): Promise<boolean> {
-    return this.isInitialized && embeddingService.isWarmedUp;
+    return this.isInitialized;
   }
 
   getStatus(): {
@@ -105,7 +105,7 @@ export class LocalMemoryClient {
     return {
       dbConnected: this.isInitialized,
       modelLoaded: embeddingService.isWarmedUp,
-      ready: this.isInitialized && embeddingService.isWarmedUp,
+      ready: this.isInitialized,
     };
   }
 

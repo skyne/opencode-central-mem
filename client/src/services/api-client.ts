@@ -134,4 +134,58 @@ export class CentralApiClient {
       return [];
     }
   }
+
+  async groomSubmit(actions: Array<{
+    action: string;
+    target_id?: string;
+    source_ids?: string[];
+    content?: string;
+    tags?: string[];
+    reason: string;
+  }>): Promise<string[]> {
+    if (this.offline) return [];
+    try {
+      const res = await fetch(`${this.baseUrl}/memories/groom/submit`, {
+        method: 'POST',
+        headers: this.headers,
+        body: JSON.stringify({ actions }),
+        signal: AbortSignal.timeout(60000),
+      });
+      if (!res.ok) return [];
+      const data = (await res.json()) as { ids: string[] };
+      return data.ids || [];
+    } catch {
+      return [];
+    }
+  }
+
+  async groomLog(status?: string): Promise<any[]> {
+    try {
+      const params = status ? `?status=${status}` : '';
+      const res = await fetch(`${this.baseUrl}/memories/groom/log${params}`, { headers: this.headers });
+      if (!res.ok) return [];
+      const data = (await res.json()) as { actions: any[] };
+      return data.actions || [];
+    } catch { return []; }
+  }
+
+  async mergeMemory(targetId: string, sourceIds: string[], mergedContent?: string, reason?: string): Promise<boolean> {
+    try {
+      const res = await fetch(`${this.baseUrl}/memories/merge`, {
+        method: 'POST', headers: this.headers,
+        body: JSON.stringify({ target_id: targetId, source_ids: sourceIds, merged_content: mergedContent, reason }),
+      });
+      return res.ok;
+    } catch { return false; }
+  }
+
+  async reconcileMemory(memoryId: string, correctedContent: string, tags?: string[], reason?: string): Promise<boolean> {
+    try {
+      const res = await fetch(`${this.baseUrl}/memories/reconcile`, {
+        method: 'POST', headers: this.headers,
+        body: JSON.stringify({ memory_id: memoryId, corrected_content: correctedContent, tags, reason }),
+      });
+      return res.ok;
+    } catch { return false; }
+  }
 }
