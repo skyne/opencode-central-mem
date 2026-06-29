@@ -41,5 +41,5 @@ curl -sL https://github.com/skyne/opencode-central-mem/releases/latest/download/
 curl -sL https://github.com/skyne/opencode-central-mem/releases/latest/download/opencode-central-mem-server.tar.gz | tar xz && cd server && npm install && AUTH_TOKEN=dev npx tsx src/index.ts
 
 # 3. Open opencode — memories auto-sync
-open code
+opencode
 ```
