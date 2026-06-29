@@ -1,31 +1,45 @@
 # opencode-central-mem
 
-Fork of [opencode-mem](https://opencode.ai) with central server sync across machines, memory grooming (AI dedup/merge/reconcile), WebSocket real-time sync, and cross-runtime support (Bun + Node.js).
+Fork of [opencode-mem](https://opencode.ai) with central server sync across machines, memory grooming (AI dedup/merge/reconcile), WebSocket real-time sync, cross-runtime (Bun + Node.js), and a web dashboard.
 
-## Install
+## Install Plugin (every peer machine running opencode)
 
 ```sh
-# macOS (Intel)
-opencode plugin /path/to/client && opencode
-
-# macOS (Apple Silicon)
-opencode plugin /path/to/client && opencode
+# macOS (Intel / Apple Silicon)
+curl -sL https://github.com/skyne/opencode-central-mem/releases/latest/download/opencode-central-mem-plugin.tar.gz | tar xz && opencode plugin ./package
 
 # Linux
-opencode plugin /path/to/client && opencode
+curl -sL https://github.com/skyne/opencode-central-mem/releases/latest/download/opencode-central-mem-plugin.tar.gz | tar xz && opencode plugin ./package
 
-# Windows
-opencode plugin C:\path\to\client && opencode
+# Windows (PowerShell)
+curl -LO https://github.com/skyne/opencode-central-mem/releases/latest/download/opencode-central-mem-plugin.tar.gz; tar xzf opencode-central-mem-plugin.tar.gz; opencode plugin ./package
 ```
 
-Configure `~/.config/opencode/opencode-mem.jsonc` with your central server URL and token.
+Then configure `~/.config/opencode/opencode-mem.jsonc`:
 
-## Server
+```jsonc
+{ "sync": { "url": "http://your-server:3737", "token": "your-token" } }
+```
+
+## Deploy Central Server
 
 ```sh
-git clone https://github.com/skyne/opencode-central-mem
-cd opencode-central-mem/server
-AUTH_TOKEN=your-token PORT=3737 npx tsx src/index.ts
+# Bare metal (macOS / Linux)
+curl -sL https://github.com/skyne/opencode-central-mem/releases/latest/download/opencode-central-mem-server.tar.gz | tar xz && cd server && npm install && AUTH_TOKEN=your-token npx tsx src/index.ts
+
+# Docker
+docker run -d -p 3737:3737 -e AUTH_TOKEN=your-token -v mem-data:/app/data ghcr.io/skyne/opencode-central-mem
 ```
 
-Or deploy via Docker / systemd.
+## Quick Start
+
+```sh
+# 1. Install plugin
+curl -sL https://github.com/skyne/opencode-central-mem/releases/latest/download/opencode-central-mem-plugin.tar.gz | tar xz && opencode plugin ./package
+
+# 2. Start server
+curl -sL https://github.com/skyne/opencode-central-mem/releases/latest/download/opencode-central-mem-server.tar.gz | tar xz && cd server && npm install && AUTH_TOKEN=dev npx tsx src/index.ts
+
+# 3. Open opencode — memories auto-sync
+open code
+```
